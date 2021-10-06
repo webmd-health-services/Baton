@@ -3,13 +3,13 @@ function Get-Environment
 {
     <#
     .SYNOPSIS
-    Gets an environment from a baton.json file.
+    Gets environments from configuration.
 
     .DESCRIPTION
     The `Get-CfgEnvironment` function gets an environment *and* all its parent environments from a "baton.json"
     file. By default, `Get-CfgEnvironment` imports and returns environments from the first "baton.json" file found,
     starting in the current directory followed by each of its parent directories. To get an enviornment from a custom
-    configuration file, call the `Import-batonuration` function and pipe that function's output to
+    configuration file, call the `Import-CfgConfiguration` function and pipe that function's output to
     `Get-CfgEnvironment`.
 
     Pass the name of the environment to the "Environment" parameter. `Get-CfgEnvironment` will return objects for that
@@ -47,10 +47,9 @@ function Get-Environment
     environment with no parent is reached.
 
     .EXAMPLE
-    Import-batonuration -LiteralPath 'C:\Start\Here' | Get-CfgEnvironment 'Verification'
+    Import-CfgConfiguration -LiteralPath 'C:\Start\Here' | Get-CfgEnvironment 'Verification'
 
-    Demonstrates how to customize the configuration `Get-CfgEnvironment` uses by using `Import-batonuration` to
-    import a custom configuration file and piping that configuration to `Get-CfgEnvironment`.
+    Demonstrates how to pass a specific configuration to `Get-CfgEnvironment` by using `Import-CfgConfiguration`.
     #>
     [CmdletBinding()]
     param(
@@ -58,8 +57,11 @@ function Get-Environment
         [Parameter(Mandatory)]
         [String] $Name,
 
-        [Parameter(Mandatory)]
-        [String] $Path
+        # The configuration to use. The default is to use the configuration in the first "baton.json" file found,
+        # starting in the current directory followed by each of its parent directories. Use `Import-CfgConfiguration`
+        # to import configurations.
+        [Parameter(ValueFromPipeline)]
+        [Object] $Configuration
     )
 
     process
@@ -67,20 +69,17 @@ function Get-Environment
         Set-StrictMode -Version 'Latest'
         Use-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
 
-        $pathArg = @{}
-        if( $Path )
+        if( -not $Configuration )
         {
-            $pathArg['Path'] = $Path
+            $Configuration = Import-Configuration
+            if( -not $Configuration )
+            {
+                return
+            }
         }
 
-        $config = Find-ConfigurationFile @pathArg | Import-Configuration
-        if( -not $config )
-        {
-            return
-        }
-
-        $configRelPath = $config.Path | Resolve-Path -Relative
-        $envs = $config.Environments
+        $configRelPath = $Configuration.Path | Resolve-Path -Relative
+        $envs = $Configuration.Environments
         $envName = $Name
         $childEnvName = ''
         $inheritanceChain = [Collections.ArrayList]::New()

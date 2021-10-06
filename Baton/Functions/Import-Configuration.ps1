@@ -91,7 +91,7 @@ function Import-Configuration
     #>
     [CmdletBinding()]
     param(
-        # The path to the file to import or the path to a directory where `Import-CfgConfiguartion` should start 
+        # The path to the file to import or the path to a directory where `Import-CfgConfiguration` should start 
         # looking for a "baton.json" file.
         [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName, Position=0, ParameterSetName='ByPath')]
         [Alias('FullName')]
@@ -106,10 +106,6 @@ function Import-Configuration
 
         $emptyObject = [pscustomobject]@{}
         $emptyArray = @()
-    }
-
-    process 
-    {
 
         function ConvertTo-Hashtable
         {
@@ -132,19 +128,54 @@ function Import-Configuration
             }
         }
 
-        $path =
-            Resolve-Path -LiteralPath $LiteralPath -ErrorAction $ErrorActionPreference |
-            Select-Object -ExpandProperty 'ProviderPath'
-        if( -not $Path )
+        Write-Debug "[$($MyInvocation.MyCommand.Name)]"
+    }
+
+    process 
+    {
+        if( -not $LiteralPath )
+        {
+            $LiteralPath = Find-ConfigurationPath
+        }
+        else
+        {
+            $LiteralPath = 
+                Resolve-Path -LiteralPath $LiteralPath -ErrorAction $ErrorActionPreference |
+                Select-Object -ExpandProperty 'ProviderPath'
+
+        }
+
+        if( -not $LiteralPath )
         {
             return
         }
-        $displayPath = Resolve-Path -LiteralPath $path -Relative
+
+        if( (Test-Path -Path $LiteralPath -PathType Container) )
+        {
+            Push-Location -Path $LiteralPath
+            try
+            {
+                $LiteralPath = Find-ConfigurationPath
+            }
+            finally
+            {
+                Pop-Location
+            }
+
+            if( -not $LiteralPath )
+            {
+                return
+            }
+        }
+
+        $displayPath = Resolve-Path -LiteralPath $LiteralPath -Relative
+
+        Write-Debug "  $($displayPath)"
 
         $config = $null
         try
         {
-            $config = Get-Content -LiteralPath $path | ConvertFrom-Json
+            $config = Get-Content -LiteralPath $LiteralPath | ConvertFrom-Json
         }
         catch
         {
@@ -160,16 +191,23 @@ function Import-Configuration
         elseif( $config -isnot ('{}' | ConvertFrom-Json).GetType() )
         {
             $msg = "$($displayPath): contains invalid JSON. Expected to get an object after parsing, but instead " +
-                   "got [$($config.GetType().FullName)]. Please update this file so that when parsed, returns a " +
-                   'single JSON object (i.e. `{` and `}` should be the first and last characters in the file).'
+                "got [$($config.GetType().FullName)]. Please update this file so that when parsed, returns a " +
+                'single JSON object (i.e. `{` and `}` should be the first and last characters in the file).'
             Write-Error -Message $msg -ErrorAction $ErrorActionPreference
             return
         }
 
         # Make sure the config has required properties. Can't do this in a single pipeline because if there's an error,
         # Add-Member doesn't return anything.
-        $config | Add-Member -Name 'Environments' -MemberType NoteProperty -Value $emptyArray.Clone() -ErrorAction Ignore
-        $config | Add-Member -Name 'Path' -MemberType NoteProperty -Value $path -Force
+        $config |
+            Add-Member -Name 'Environments' -MemberType NoteProperty -Value $emptyArray.Clone() -ErrorAction Ignore
+        $config | Add-Member -Name 'Path' -MemberType NoteProperty -Value $LiteralPath -Force
+
+        # Make sure environments is *always* an array.
+        if( $config.Environments -is [pscustomobject] )
+        {
+            $config.Environments = @( $config.Environments )
+        }
 
         $envIdx = 0
         foreach( $env in $config.Environments )
@@ -179,7 +217,7 @@ function Import-Configuration
             if( -not ($env | Get-Member -Name 'Name') )
             {
                 $msg = "$($displayPath): Environment $($envIdx) doesn't have a ""Name"" property. Each " +
-                       'environment *must* have a name.'
+                    'environment *must* have a name.'
                 Write-Error -Message $msg -ErrorAction $ErrorActionPreference
                 return
             }
@@ -198,8 +236,8 @@ function Import-Configuration
                 if( -not ($vault | Get-Member -Name 'KeyThumbprint') )
                 {
                     $msg = "$($displayPath): Environment $($env.Name): Vault $($vaultIdx) doesn't have a " +
-                           '"KeyThumbprint" property. Each vault must have a "KeyThumbprint" property that is ' +
-                           'thumbprint used to decrypt the secrets in that vault or the vault''s symmetric key.'
+                        '"KeyThumbprint" property. Each vault must have a "KeyThumbprint" property that is ' +
+                        'thumbprint used to decrypt the secrets in that vault or the vault''s symmetric key.'
                     Write-Error -Message $msg -ErrorAction $ErrorActionPreference
                     return
                 }
@@ -211,5 +249,10 @@ function Import-Configuration
         }
 
         return $config
+    }
+
+    end
+    {
+        Write-Debug "[$($MyInvocation.MyCommand.Name)]"
     }
 }

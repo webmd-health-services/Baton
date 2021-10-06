@@ -64,8 +64,8 @@ function ThenFoundFile
     )
 
     $script:result | Should -Not -BeNullOrEmpty
-    ,$script:result | Should -BeOfType [IO.FileInfo]
-    $script:result.FullName | Should -Be $Path
+    ,$script:result | Should -BeOfType [String]]
+    $script:result | Should -Be $Path
 }
 
 function ThenNoError
@@ -124,7 +124,7 @@ function WhenFinding
 
         $script:result = InModuleScope 'Baton' {
             $ErrorActionPreference = $Global:BCfgErrorActionPreference
-            $Global:BCfgResult = Find-ConfigurationFile @Global:BCfgFindParam
+            $Global:BCfgResult = Find-ConfigurationPath @Global:BCfgFindParam
         }
     }
     finally
@@ -137,7 +137,7 @@ function WhenFinding
     }
 }
 
-Describe 'Find-ConfigurationFile.when there is no file' {
+Describe 'Find-ConfigurationPath.when there is no file' {
     It 'should fail' {
         Init
         WhenFinding -ErrorAction SilentlyContinue
@@ -146,7 +146,7 @@ Describe 'Find-ConfigurationFile.when there is no file' {
     }
 }
 
-Describe 'Find-ConfigurationFile.when there is no file but ignoring the error' {
+Describe 'Find-ConfigurationPath.when there is no file but ignoring the error' {
     It 'should not fail' {
         Init
         WhenFinding -ErrorAction Ignore
@@ -155,7 +155,7 @@ Describe 'Find-ConfigurationFile.when there is no file but ignoring the error' {
     }
 }
 
-Describe 'Find-ConfigurationFile.when a file exists in every directory' {
+Describe 'Find-ConfigurationPath.when a file exists in every directory' {
     It 'should return first file found' {
         Init
         $candidateDir = (Get-Location).Path
@@ -171,31 +171,27 @@ Describe 'Find-ConfigurationFile.when a file exists in every directory' {
     }
 }
 
-Describe 'Find-ConfigurationFile.when search path does not exist' {
-    It 'should fail' {
+Describe 'Find-ConfigurationPath.when file exists in parent directory' {
+    It 'should return first file found' {
         Init
-        $searchPath = Join-Path -Path $TestDrive.FullName -ChildPath ([IO.Path]::GetRandomFileName())
-        WhenFinding -In $searchPath -ErrorAction SilentlyContinue
-        ThenFailed ([regex]::Escape("Path ""$($searchPath)"" does not exist"))
+        $filePath = Join-Path -Path ((Get-Location).Path | Split-Path) -ChildPath 'baton.json'
+        GivenMockFile $filePath
+        WhenFinding
+        ThenFoundFile
     }
 }
 
-Describe 'Find-ConfigurationFile.when search path does not exist and ignoring the error' {
-    It 'should not fail' {
+Describe 'Find-ConfigurationPath.when file exists in top-most directory' {
+    It 'should return first file found' {
         Init
-        $searchPath = Join-Path -Path $TestDrive.FullName -ChildPath ([IO.Path]::GetRandomFileName())
-        WhenFinding -In $searchPath -ErrorAction Ignore
-        ThenNothingReturned
-        ThenNoError
-    }
-}
-
-Describe 'Find-ConfigurationFile.when passing path to the file' {
-    It 'should return file' {
-        Init
-        $configPath = Join-Path -Path $TestDrive.FullName -ChildPath ([IO.Path]::GetRandomFileName())
-        GivenFile $configPath
-        WhenFinding -Path $configPath
-        ThenFoundFile $configPath
+        $root = (Get-Location).Path | Split-Path -Qualifier -ErrorAction Ignore
+        if( -not $root )
+        {
+            $root = '/'
+        }
+        $filePath = Join-Path -Path $root -ChildPath 'baton.json'
+        GivenMockFile $filePath
+        WhenFinding
+        ThenFoundFile
     }
 }

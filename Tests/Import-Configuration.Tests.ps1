@@ -6,6 +6,8 @@ Set-StrictMode -Version 'Latest'
 
 $path = $null
 $result = $null
+$testDir = $null
+$testNum = 0
 
 function GivenConfigJson
 {
@@ -15,12 +17,15 @@ function GivenConfigJson
         [AllowEmptyString()]
         [String] $Json,
 
-        $InFileNamed
+        $InFileNamed = 'baton.json'
     )
 
-    if( $InFileNamed )
+    $script:path = Join-Path -Path $script:testDir -ChildPath $InFileNamed
+
+    $parentDir = $script:path | Split-Path
+    if( -not (Test-Path -Path $parentDir -PathType Container) )
     {
-        $script:path = Join-Path -Path ($path | Split-Path) -ChildPath $InFileNamed
+        New-Item -Path $parentDir -ItemType 'Directory' -Force
     }
 
     $Json | Set-Content -LiteralPath $path
@@ -29,7 +34,9 @@ function GivenConfigJson
 function Init
 {
     $Global:Error.Clear()
-    $script:path = Join-Path -Path $TestDrive.FullName -ChildPath "$([IO.Path]::GetRandomFileName()).json"
+    $script:testDir = Join-Path -Path $TestDrive.FullName -ChildPath ($testNum++)
+    New-Item -Path $script:testDir -ItemType 'Directory'
+    $script:path = Join-Path -Path $script:testDir -ChildPath "baton.json"
     $script:result = $null
 }
 
@@ -37,18 +44,34 @@ function ThenConfigReturned
 {
     [CmdletBinding()]
     param(
-        [int] $WithEnvironmentCount
+        [int] $WithEnvironmentCount,
+
+        [Parameter(ValueFromPipeline)]
+        [Object] $InputObject = $script:result,
+
+        [String] $FromFileNamed
     )
 
-    $result | Should -HaveCount 1
-    $result | Should -BeOfType ('{}' | ConvertFrom-Json).GetType()
-    $result | Get-Member -Name 'Environments' | Should -Not -BeNullOrEmpty
-    ,$result.Environments | Should -BeOfType (@()).GetType()
-    $result | Get-Member -Name 'Path' | Should -Not -BeNullOrEmpty
-    $result.Path | Should -BeOfType [string]
-    $result.Path | Should -Be $path
+    process
+    {
+        if( $FromFileNamed )
+        {
+            $expectedPath = Join-Path -Path $script:testDir -ChildPath $FromFileNamed
+        }
+        else
+        {
+            $expectedPath = $script:path
+        }
+        $InputObject | Should -HaveCount 1
+        $InputObject | Should -BeOfType ('{}' | ConvertFrom-Json).GetType()
+        $InputObject | Get-Member -Name 'Environments' | Should -Not -BeNullOrEmpty
+        ,$InputObject.Environments | Should -BeOfType (@()).GetType()
+        $InputObject | Get-Member -Name 'Path' | Should -Not -BeNullOrEmpty
+        $InputObject.Path | Should -BeOfType [string]
+        $InputObject.Path | Should -Be $expectedPath
 
-    $result.Environments.Count | Should -Be $WithEnvironmentCount
+        $InputObject.Environments.Count | Should -Be $WithEnvironmentCount
+    }
 }
 
 function ThenEnvironment
@@ -57,6 +80,9 @@ function ThenEnvironment
     param(
         [Parameter(Mandatory, Position=0)]
         [String] $Named,
+
+        [Parameter(ValueFromPipeline)]
+        [Object] $InputObject = $script:result,
 
         [Parameter(Mandatory, ParameterSetName='Environment')]
         [switch] $Exists,
@@ -83,56 +109,58 @@ function ThenEnvironment
         [hashtable] $WithSecrets = @{}
     )
 
-    
-    $env = $result.Environments | Where-Object 'Name' -EQ $Named
-    $env | Should -Not -BeNullOrEmpty
-    $env | Should -HaveCount 1
-
-    $env | Get-Member -Name 'Vaults' | Should -Not -BeNullOrEmpty
-
-    if( $Exists )
+    process
     {
-        $env.Vaults | Should -HaveCount $HasVaultCount
+        $env = $result.Environments | Where-Object 'Name' -EQ $Named
+        $env | Should -Not -BeNullOrEmpty
+        $env | Should -HaveCount 1
 
-        $env | Get-Member -Name 'InheritsFrom' | Should -Not -BeNullOrEmpty
-        $env.InheritsFrom | Should -BeOfType [String]
-        $env.InheritsFrom | Should -Be $InheritsFrom
-        
-        $env | Get-Member -Name 'Settings' | Should -Not -BeNullOrEmpty
-        $env.Settings | Should -BeOfType [hashtable]
-        $env.Settings.Count | Should -Be $WithSettings.Count
-        foreach( $name in $WithSettings.Keys )
+        $env | Get-Member -Name 'Vaults' | Should -Not -BeNullOrEmpty
+
+        if( $Exists )
         {
-            $env.Settings[$name] | Should -Be $WithSettings[$name]
+            $env.Vaults | Should -HaveCount $HasVaultCount
+
+            $env | Get-Member -Name 'InheritsFrom' | Should -Not -BeNullOrEmpty
+            $env.InheritsFrom | Should -BeOfType [String]
+            $env.InheritsFrom | Should -Be $InheritsFrom
+            
+            $env | Get-Member -Name 'Settings' | Should -Not -BeNullOrEmpty
+            $env.Settings | Should -BeOfType [hashtable]
+            $env.Settings.Count | Should -Be $WithSettings.Count
+            foreach( $name in $WithSettings.Keys )
+            {
+                $env.Settings[$name] | Should -Be $WithSettings[$name]
+            }
         }
-    }
 
-    foreach( $vault in $env.Vaults )
-    {
-        $vault | Should -Not -BeNullOrEmpty
-        $vault | Get-Member -Name 'KeyThumbprint' | Should -Not -BeNullOrEmpty
-        $vault.KeyThumbprint | Should -BeOfType [String]
-        $vault | Get-Member -Name 'Key' | Should -Not -BeNullOrEmpty
-        $vault.Key | Should -BeOfType [String]
-        $vault | Get-Member -Name 'Secrets' | Should -Not -BeNullOrEmpty
-        $vault.Secrets | Should -BeOfType [hashtable]
-    }
-
-    if( $HasVault )
-    {
-        $vault = $env.Vaults | Where-Object 'KeyThumbprint' -EQ $WithThumbprint
-        $vault | Should -Not -BeNullOrEmpty
-        $vault | Should -BeOfType [pscustomobject]
-
-        $vault | Get-Member -Name 'Key' | Should -Not -BeNullOrEmpty
-        $vault.Key | Should -Be $WithSymmetricKey
-
-        $vault | Get-Member -Name 'Secrets' | Should -Not -BeNullOrEmpty
-        $vault.Secrets | Should -BeOfType [hashtable]
-        $vault.Secrets.Count | Should -Be $WithSecrets.Count
-        foreach( $name in $WithSecrets.Keys )
+        foreach( $vault in $env.Vaults )
         {
-            $vault.Secrets[$name] | Should -Be $WithSecrets[$name]
+            $vault | Should -Not -BeNullOrEmpty
+            $vault | Get-Member -Name 'KeyThumbprint' | Should -Not -BeNullOrEmpty
+            $vault.KeyThumbprint | Should -BeOfType [String]
+            $vault | Get-Member -Name 'Key' | Should -Not -BeNullOrEmpty
+            $vault.Key | Should -BeOfType [String]
+            $vault | Get-Member -Name 'Secrets' | Should -Not -BeNullOrEmpty
+            $vault.Secrets | Should -BeOfType [hashtable]
+        }
+
+        if( $HasVault )
+        {
+            $vault = $env.Vaults | Where-Object 'KeyThumbprint' -EQ $WithThumbprint
+            $vault | Should -Not -BeNullOrEmpty
+            $vault | Should -BeOfType [pscustomobject]
+
+            $vault | Get-Member -Name 'Key' | Should -Not -BeNullOrEmpty
+            $vault.Key | Should -Be $WithSymmetricKey
+
+            $vault | Get-Member -Name 'Secrets' | Should -Not -BeNullOrEmpty
+            $vault.Secrets | Should -BeOfType [hashtable]
+            $vault.Secrets.Count | Should -Be $WithSecrets.Count
+            foreach( $name in $WithSecrets.Keys )
+            {
+                $vault.Secrets[$name] | Should -Be $WithSecrets[$name]
+            }
         }
     }
 }
@@ -157,10 +185,28 @@ function WhenImporting
 {
     [CmdletBinding()]
     param(
-        [String] $Path = $script:path
+        [Parameter(ParameterSetName='FromExplicitPath', Position=0)]
+        [String] $Path = $script:path,
+
+        [Parameter(Mandatory, ParameterSetName='FromDefaultPath')]
+        [switch] $FromDefaultConfigFile,
+
+        [Parameter(Mandatory, ParameterSetName='FromPipeline')]
+        [Object[]]$FromPipelineWithTheseObjects
     )
 
-    $script:result = Import-CfgConfiguration -LiteralPath $Path
+    if( $FromPipelineWithTheseObjects )
+    {
+        $script:result = $FromPipelineWithTheseObjects | Import-CfgConfiguration
+        return
+    }
+
+    $literalPathParam = @{}
+    if( -not $FromDefaultConfigFile )
+    {
+        $literalPathParam['LiteralPath'] = $Path
+    }
+    $script:result = Import-CfgConfiguration @literalPathParam
 }
 
 Describe 'Import-Configuration.when passed an empty file' {
@@ -359,5 +405,52 @@ Describe 'Import-Configuration.when Environments and Vaults are single objects' 
                         -WithThumbprint 'yolo' `
                         -WithSymmetricKey 'symmetrickey' `
                         -WithSecrets @{ 'hello' = 'world' }
+    }
+}
+
+Describe 'Importing-Configuration.when importing default baton.json' {
+    It 'should return configuration from file in current directory' {
+        Init
+        GivenConfigJson '{ "Environments": { "Name": "DefaultConfig" } }'
+        Mock -CommandName 'Find-ConfigurationPath' `
+             -ModuleName 'Baton' `
+             -MockWith ([scriptblock]::Create("return '$($script:path)'")) `
+             -Verifiable
+        WhenImporting -FromDefaultConfigFile
+        Assert-VerifiableMock
+        ThenConfigReturned -WithEnvironmentCount 1
+        ThenEnvironment 'DefaultConfig' -Exists
+    }
+}
+
+Describe 'Importing-Configuration.when importing specific files and directories' {
+    It 'should return configuration objects for each file and baton JSON files in directories' {
+        Init
+        GivenConfigJson '{ "Environments": { "Name": "CustomJson" } }' -InFileNamed 'custom.json'
+        GivenConfigJson '{ "Environments": { "Name": "Deprecated" } }' -InFileNamed 'deprecated.json'
+        GivenConfigJson '{ "Environments": { "Name": "InDir1" } }' -InFileNamed 'dir1\baton.json'
+        GivenConfigJson '{ "Environments": { "Name": "InDir2" } }' -InFileNamed 'dir2\baton.json'
+        $itemsToPipe = & {
+            Get-ChildItem -Path $script:testdir -Filter '*.json'
+            Get-ChildItem -Path $script:testdir -Filter 'dir*'
+        }
+        WhenImporting -FromPipelineWithTheseObjects $itemsToPipe
+        $script:result | Should -HaveCount 4
+
+        $customConfig = $script:result | Select-Object -First 1
+        $customConfig | ThenConfigReturned -WithEnvironmentCount 1 -FromFileNamed 'custom.json'
+        $customConfig | ThenEnvironment 'CustomJson' -Exists
+
+        $deprecatedConfig = $script:result | Select-Object -Skip 1 | Select-Object -First 1
+        $deprecatedConfig | ThenConfigReturned -WithEnvironmentCount 1 -FromFileNamed 'deprecated.json'
+        $deprecatedConfig | ThenEnvironment 'Deprecated' -Exists
+
+        $dir1Config = $script:result | Select-Object -Skip 2 | Select-Object -First 1
+        $dir1Config | ThenEnvironment 'InDir1' -Exists
+        $dir1Config | ThenConfigReturned -WithEnvironmentCount 1 -FromFileNamed 'dir1\baton.json'
+
+        $dir1Config = $script:result | Select-Object -Last 1
+        $dir1Config | ThenConfigReturned -WithEnvironmentCount 1 -FromFileNamed 'dir2\baton.json'
+        $dir1Config | ThenEnvironment 'InDir2' -Exists
     }
 }

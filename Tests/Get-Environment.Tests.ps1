@@ -15,7 +15,8 @@ function GivenConfig
         [Parameter(Mandatory)]
         [String] $Content
     )
-    $script:configPath = Join-Path -Path $testDir -ChildPath 'baton.json'
+
+    $script:configPath = Join-Path -Path $script:testDir -ChildPath 'baton.json'
 
     Set-Content -LiteralPath $script:configPath -Value $Content
 }
@@ -86,10 +87,18 @@ function WhenGettingEnv
     [CmdletBinding()]
     param(
         [Parameter(Mandatory, Position=0)]
-        [String] $Named
+        [String] $Named,
+
+        [switch] $FromDefaultConfigFile
     )
 
-    $script:result = Get-CfgEnvironment -Name $Named -Path $script:configPath
+    if( $FromDefaultConfigFile )
+    {
+        $script:result = Get-CfgEnvironment -Name $Named
+        return
+    }
+
+    $script:result = Import-CfgConfiguration -LiteralPath $script:configPath | Get-CfgEnvironment -Name $Named
 }
 
 Describe 'Get-Environment.when environment does not exist' {
@@ -197,5 +206,21 @@ Describe 'Get-Environment.when environment inheritance is circular' {
         ThenFailed
         ThenEnvReturned 'Verification', 'SomeOtherEnv', 'YAE'
         ThenError ([regex]::Escape('Verification -> SomeOtherEnv -> YAE -> Verification'))
+    }
+}
+
+Describe 'Get-Environment.when not piping configuration object' {
+    It 'should return default configuration' {
+        Init
+        GivenConfig '{ "Environments": [ { "Name": "Pipe1" }, { "Name": "Pipe2" } ] }'
+        Mock -CommandName 'Import-Configuration' `
+             -ModuleName 'Baton' `
+             -ParameterFilter { -not $LiteralPath } `
+             -MockWith ([scriptblock]::Create("Import-Configuration -LiteralPath '$($script:configPath)'")) `
+             -Verifiable
+        WhenGettingEnv 'Pipe2' -FromDefaultConfigFile
+        Assert-VerifiableMock
+        ThenNoError
+        ThenEnvReturned 'Pipe2'
     }
 }

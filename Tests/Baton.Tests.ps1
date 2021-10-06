@@ -52,17 +52,17 @@ function ThenHelpTopic
 
     if( $HasSynopsis )
     {
-        $help.Synopsis | Should -Not -BeNullOrEmpty
+        $help.Synopsis | Should -Not -BeNullOrEmpty -Because "$($Named) should have synopsis"
     }
 
     if( $HasDescription )
     {
-        $help.Description | Should -Not -BeNullOrEmpty
+        $help.Description | Should -Not -BeNullOrEmpty -Because "$($Named) should have description"
     }
 
     if( $HasExamples )
     {
-        $help.Examples | Should -Not -BeNullOrEmpty
+        $help.Examples | Should -Not -BeNullOrEmpty -Because "$($Named) should have examples"
     }
 }
 

@@ -78,8 +78,8 @@ A PowerShell module to aid in separating configuration from code. Use Baton when
 
     # Functions to export from this module. Only list public function here.
     FunctionsToExport = @(
-        'Find-ConfigurationFile',
         'Get-Environment',
+        'Get-Setting',
         'Import-Configuration'
     )
 
@@ -129,8 +129,8 @@ A PowerShell module to aid in separating configuration from code. Use Baton when
             # ReleaseNotes of this module
             ReleaseNotes = @'
 * Created "Import-CfgConfiguration" function for importing a Baton configuration JSON file and returning it as an object.
-* Created "Find-ConfigurationFile" function for finding the default or a specific baton.json file to use.
-* Created "Get-Environment" function for getting environment configuration from a baton.json configuration file.
+* Created "Get-Environment" function for getting environment configuration from a Baton configuration file.
+* Created "Get-Setting" function for getting an environment-specific setting from a Baton configuration file.
 '@
         } # End of PSData hashtable
 
