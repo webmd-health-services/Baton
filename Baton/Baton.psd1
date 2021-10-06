@@ -18,10 +18,10 @@
     RootModule = 'Baton.psm1'
 
     # Version number of this module.
-    ModuleVersion = '0.0.0'
+    ModuleVersion = '1.0.0'
 
     # ID used to uniquely identify this module
-    GUID = ''
+    GUID = '07DFDB45-94CB-4627-A2EB-63A3C1844F74'
 
     # Author of this module
     Author = 'WebMD Health Services'
@@ -36,7 +36,9 @@
     Copyright = '(c) WebMD Health Services.'
 
     # Description of the functionality provided by this module
-    Description = ''
+    Description = @'
+A PowerShell module to aid in separating configuration from code. Use Baton when code needs to do different things in different environments. Put those differences in a baton.json file and use Get-CfgSetting to get a setting for an environment.
+'@
 
     # Minimum version of the Windows PowerShell engine required by this module
     PowerShellVersion = '5.1'
@@ -76,6 +78,7 @@
 
     # Functions to export from this module. Only list public function here.
     FunctionsToExport = @(
+        'Import-Configuration'
     )
 
     # Cmdlets to export from this module. By default, you get a script module, so there are no cmdlets.
@@ -95,6 +98,12 @@
 
     # List of all files packaged with this module
     # FileList = @()
+
+    # HelpInfo URI of this module
+    # HelpInfoURI = ''
+
+    # Default prefix for commands exported from this module. Override the default prefix using Import-Module -Prefix.
+    DefaultCommandPrefix = 'Cfg'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
@@ -117,6 +126,7 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+* Created "Import-CfgConfiguration" function for importing a Baton configuration JSON file and returning it as an object.
 '@
         } # End of PSData hashtable
 

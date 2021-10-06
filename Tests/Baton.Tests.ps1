@@ -20,7 +20,7 @@ function ThenUseApprovedVerbs
     )
 
     $verbs = 
-        Get-Command -Module 'WhsAutomation'| 
+        Get-Command -Module 'Baton'| 
         Where-Object { $_ -isnot [Management.Automation.AliasInfo] } |
         Select-Object -ExpandProperty Verb | 
         Select-Object -Unique
