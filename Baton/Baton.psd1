@@ -80,6 +80,7 @@ A PowerShell module to aid in separating configuration from code. Use Baton when
     FunctionsToExport = @(
         'Get-Environment',
         'Get-Setting',
+        'Get-Vault',
         'Import-Configuration'
     )
 
@@ -129,8 +130,9 @@ A PowerShell module to aid in separating configuration from code. Use Baton when
             # ReleaseNotes of this module
             ReleaseNotes = @'
 * Created "Import-CfgConfiguration" function for importing a Baton configuration JSON file and returning it as an object.
-* Created "Get-Environment" function for getting environment configuration from a Baton configuration file.
-* Created "Get-Setting" function for getting an environment-specific setting from a Baton configuration file.
+* Created "Get-CfgEnvironment" function for getting environment configuration from a Baton configuration file.
+* Created "Get-CfgSetting" function for getting an environment-specific setting from a Baton configuration file.
+* Created "Get-CfgVault" function for getting an environment's vaults from a Baton configuration file.
 '@
         } # End of PSData hashtable
 
