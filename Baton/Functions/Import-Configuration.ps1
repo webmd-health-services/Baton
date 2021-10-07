@@ -233,15 +233,20 @@ function Import-Configuration
             foreach( $vault in $env.Vaults )
             {
                 $vaultIdx += 1
-                if( -not ($vault | Get-Member -Name 'KeyThumbprint') )
+                if( -not ($vault | Get-Member -Name 'Key') )
                 {
                     $msg = "$($displayPath): Environment $($env.Name): Vault $($vaultIdx) doesn't have a " +
-                        '"KeyThumbprint" property. Each vault must have a "KeyThumbprint" property that is ' +
-                        'thumbprint used to decrypt the secrets in that vault or the vault''s symmetric key.'
+                           '"Key" property. Each vault must have a "Key" property. For asymmetric keys (i.e. public ' +
+                           'key cryptography), "Key" should be the thumbprint of the certificate to use. The ' +
+                           'certificate must be in the "My"/"Personal" certificate store. For symmetric keys, "Key" ' +
+                           'should be the bytes of the key, encrypted and base-64 encoded. The key should be ' +
+                           'encrypted using the asymmetric key given by the thumbprint in the ' +
+                           '"KeyDecryptionKey" property.'
                     Write-Error -Message $msg -ErrorAction $ErrorActionPreference
                     return
                 }
-                $vault | Add-Member -Name 'Key' -MemberType 'NoteProperty' -Value '' -ErrorAction Ignore
+                $vault | Add-Member -Name 'IsSymmetricKey' -MemberType 'NoteProperty' -Value $false -ErrorAction Ignore
+                $vault | Add-Member -Name 'KeyDecryptionKey' -MemberType 'NoteProperty' -Value '' -ErrorAction Ignore
                 $vault | Add-Member -Name 'Secrets' -MemberType NoteProperty -Value $emptyObject -ErrorAction Ignore
 
                 $vault.Secrets = $vault.Secrets | ConvertTo-Hashtable

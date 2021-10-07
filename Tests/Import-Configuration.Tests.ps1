@@ -100,10 +100,10 @@ function ThenEnvironment
         [switch] $HasVault,
 
         [Parameter(Mandatory, ParameterSetName='Vault')]
-        [String] $WithThumbprint,
+        [String] $WithKey,
 
         [Parameter(ParameterSetName='Vault')]
-        [String] $WithSymmetricKey = '',
+        [String] $WithSymmetricKeyDecryptionKey = '',
 
         [Parameter(ParameterSetName='Vault')]
         [hashtable] $WithSecrets = @{}
@@ -137,22 +137,32 @@ function ThenEnvironment
         foreach( $vault in $env.Vaults )
         {
             $vault | Should -Not -BeNullOrEmpty
-            $vault | Get-Member -Name 'KeyThumbprint' | Should -Not -BeNullOrEmpty
-            $vault.KeyThumbprint | Should -BeOfType [String]
             $vault | Get-Member -Name 'Key' | Should -Not -BeNullOrEmpty
             $vault.Key | Should -BeOfType [String]
+            $vault | Get-Member -Name 'IsSymmetricKey' | Should -Not -BeNullOrEmpty
+            $vault.IsSymmetricKey | Should -BeOfType [bool]
+            $vault | Get-Member -Name 'KeyDecryptionKey' | Should -Not -BeNullOrEmpty
+            $vault.KeyDecryptionKey | Should -BeOfType [String]
             $vault | Get-Member -Name 'Secrets' | Should -Not -BeNullOrEmpty
             $vault.Secrets | Should -BeOfType [hashtable]
         }
 
         if( $HasVault )
         {
-            $vault = $env.Vaults | Where-Object 'KeyThumbprint' -EQ $WithThumbprint
+            $vault = $env.Vaults | Where-Object 'Key' -EQ $WithKey
             $vault | Should -Not -BeNullOrEmpty
             $vault | Should -BeOfType [pscustomobject]
 
-            $vault | Get-Member -Name 'Key' | Should -Not -BeNullOrEmpty
-            $vault.Key | Should -Be $WithSymmetricKey
+            if( $WithSymmetricKeyDecryptionKey )
+            {
+                $vault.IsSymmetricKey | Should -BeTrue
+            }
+            else
+            {
+                $vault.IsSymmetricKey | Should -BeFalse
+            }
+            $vault | Get-Member -Name 'KeyDecryptionKey' | Should -Not -BeNullOrEmpty
+            $vault.KeyDecryptionKey | Should -Be $WithSymmetricKeyDecryptionKey
 
             $vault | Get-Member -Name 'Secrets' | Should -Not -BeNullOrEmpty
             $vault.Secrets | Should -BeOfType [hashtable]
@@ -304,7 +314,7 @@ Describe 'Import-Configuration.when configuration is full' {
             },
             "Vaults": [
                 {
-                    "KeyThumbprint": "minus3",
+                    "Key": "minus3",
                     "Secrets": {
                         "minus4": "minus5"
                     }
@@ -320,15 +330,16 @@ Describe 'Import-Configuration.when configuration is full' {
             },
             "Vaults": [
                 {
-                    "KeyThumbprint": "deadbee",
                     "Key": "symmetrickey",
+                    "IsSymmetricKey": true,
+                    "KeyDecryptionKey": "deadbee",
                     "Secrets": {
                         "five": "six",
                         "seven": "eight"
                     }
                 },
                 {
-                    "KeyThumbprint": "eebdaed",
+                    "Key": "eebdaed",
                     "Secrets": {
                         "nine": "ten"
                     }
@@ -341,7 +352,7 @@ Describe 'Import-Configuration.when configuration is full' {
         WhenImporting
         ThenConfigReturned -WithEnvironmentCount 2
         ThenEnvironment "Verification" -Exists -WithSettings @{"Minus1" = "Minus2" } -HasVaultCount 1
-        ThenEnvironment 'Verification' -HasVault -WithThumbprint 'minus3' -WithSecrets @{ 'minus4' = 'minus5' }
+        ThenEnvironment 'Verification' -HasVault -WithKey 'minus3' -WithSecrets @{ 'minus4' = 'minus5' }
         ThenEnvironment 'Two' `
                         -Exists `
                         -InheritsFrom "Verification" `
@@ -349,15 +360,15 @@ Describe 'Import-Configuration.when configuration is full' {
                         -HasVaultCount 2
         ThenEnvironment 'Two' `
                         -HasVault `
-                        -WithThumbprint 'deadbee' `
-                        -WithSymmetricKey 'symmetrickey' `
+                        -WithSymmetricKeyDecryptionKey 'deadbee' `
+                        -WithKey 'symmetrickey' `
                         -WithSecrets @{ 'five' = 'six' ; 'seven' = 'eight' }
-        ThenEnvironment 'Two' -HasVault -WithThumbprint 'eebdaed' -WithSecrets @{ 'nine' = 'ten' }
+        ThenEnvironment 'Two' -HasVault -WithKey 'eebdaed' -WithSecrets @{ 'nine' = 'ten' }
         
     }
 }
 
-Describe 'Import-Configuration.when configuration is full' {
+Describe 'Import-Configuration.when a vault is missing its key' {
     It 'should return full object' {
         Init
         GivenConfigJson @'
@@ -376,7 +387,7 @@ Describe 'Import-Configuration.when configuration is full' {
 }
 '@
         WhenImporting -ErrorAction SilentlyContinue
-        ThenFailed -WithErrorMessageMatching 'vault must have a "KeyThumbprint" property'
+        ThenFailed -WithErrorMessageMatching 'vault must have a "Key" property'
     }
 }
 
@@ -389,8 +400,9 @@ Describe 'Import-Configuration.when Environments and Vaults are single objects' 
         "Name": "Verification",
         "InheritsFrom": "Default",
         "Vaults": {
-            "KeyThumbprint": "yolo",
             "Key": "symmetrickey",
+            "IsSymmetricKey": true,
+            "KeyDecryptionKey": "yolo",
             "Secrets": {
                 "hello": "world"
             }
@@ -402,8 +414,8 @@ Describe 'Import-Configuration.when Environments and Vaults are single objects' 
         ThenEnvironment 'Verification' -Exists -InheritsFrom 'Default' -HasVaultCount 1
         ThenEnvironment 'Verification' `
                         -HasVault `
-                        -WithThumbprint 'yolo' `
-                        -WithSymmetricKey 'symmetrickey' `
+                        -WithSymmetricKeyDecryptionKey 'yolo' `
+                        -WithKey 'symmetrickey' `
                         -WithSecrets @{ 'hello' = 'world' }
     }
 }
