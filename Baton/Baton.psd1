@@ -37,7 +37,9 @@
 
     # Description of the functionality provided by this module
     Description = @'
-A PowerShell module to aid in separating configuration from code. Use Baton when code needs to do different things in different environments. Put those differences in a baton.json file and use Get-CfgSetting to get a setting for an environment.
+A PowerShell module to aid in separating configuration from code. Use Baton when code needs to do different things in
+different environments. Put those differences in a baton.json file and use Get-CfgSetting to get a setting for an
+environment.
 '@
 
     # Minimum version of the Windows PowerShell engine required by this module
@@ -128,12 +130,7 @@ A PowerShell module to aid in separating configuration from code. Use Baton when
             Prerelease = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = @'
-* Created "Import-CfgConfiguration" function for importing a Baton configuration JSON file and returning it as an object.
-* Created "Get-CfgEnvironment" function for getting environment configuration from a Baton configuration file.
-* Created "Get-CfgSetting" function for getting an environment-specific setting from a Baton configuration file.
-* Created "Get-CfgVault" function for getting an environment's vaults from a Baton configuration file.
-'@
+            ReleaseNotes = 'https://github.com/webmd-health-services/Baton/blob/main/CHANGELOG.md'
         } # End of PSData hashtable
 
     } # End of PrivateData hashtable
