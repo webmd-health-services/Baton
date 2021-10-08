@@ -63,12 +63,14 @@ function ThenConfigReturned
             $expectedPath = $script:path
         }
         $InputObject | Should -HaveCount 1
-        $InputObject | Should -BeOfType ('{}' | ConvertFrom-Json).GetType()
+        $InputObject | Should -BeOfType [pscustomobject]
         $InputObject | Get-Member -Name 'Environments' | Should -Not -BeNullOrEmpty
-        ,$InputObject.Environments | Should -BeOfType (@()).GetType()
+        ,$InputObject.Environments | Should -BeOfType [Collections.ArrayList]
         $InputObject | Get-Member -Name 'Path' | Should -Not -BeNullOrEmpty
-        $InputObject.Path | Should -BeOfType [string]
+        $InputObject.Path | Should -BeOfType [String]
         $InputObject.Path | Should -Be $expectedPath
+        $InputObject.ConfigurationRoot | Should -BeOfType [String]
+        $InputObject.ConfigurationRoot | Should -Be ($expectedPath | Split-Path)
 
         $InputObject.Environments.Count | Should -Be $WithEnvironmentCount
     }
@@ -126,7 +128,7 @@ function ThenEnvironment
             $env.InheritsFrom | Should -Be $InheritsFrom
             
             $env | Get-Member -Name 'Settings' | Should -Not -BeNullOrEmpty
-            $env.Settings | Should -BeOfType [hashtable]
+            $env.Settings | Should -BeOfType [Collections.IDictionary]
             $env.Settings.Count | Should -Be $WithSettings.Count
             foreach( $name in $WithSettings.Keys )
             {
@@ -139,12 +141,10 @@ function ThenEnvironment
             $vault | Should -Not -BeNullOrEmpty
             $vault | Get-Member -Name 'Key' | Should -Not -BeNullOrEmpty
             $vault.Key | Should -BeOfType [String]
-            $vault | Get-Member -Name 'IsSymmetricKey' | Should -Not -BeNullOrEmpty
-            $vault.IsSymmetricKey | Should -BeOfType [bool]
             $vault | Get-Member -Name 'KeyDecryptionKey' | Should -Not -BeNullOrEmpty
             $vault.KeyDecryptionKey | Should -BeOfType [String]
             $vault | Get-Member -Name 'Secrets' | Should -Not -BeNullOrEmpty
-            $vault.Secrets | Should -BeOfType [hashtable]
+            $vault.Secrets | Should -BeOfType [Collections.IDictionary]
         }
 
         if( $HasVault )
@@ -153,19 +153,11 @@ function ThenEnvironment
             $vault | Should -Not -BeNullOrEmpty
             $vault | Should -BeOfType [pscustomobject]
 
-            if( $WithSymmetricKeyDecryptionKey )
-            {
-                $vault.IsSymmetricKey | Should -BeTrue
-            }
-            else
-            {
-                $vault.IsSymmetricKey | Should -BeFalse
-            }
             $vault | Get-Member -Name 'KeyDecryptionKey' | Should -Not -BeNullOrEmpty
             $vault.KeyDecryptionKey | Should -Be $WithSymmetricKeyDecryptionKey
 
             $vault | Get-Member -Name 'Secrets' | Should -Not -BeNullOrEmpty
-            $vault.Secrets | Should -BeOfType [hashtable]
+            $vault.Secrets | Should -BeOfType [Collections.IDictionary]
             $vault.Secrets.Count | Should -Be $WithSecrets.Count
             foreach( $name in $WithSecrets.Keys )
             {
@@ -331,7 +323,6 @@ Describe 'Import-Configuration.when configuration is full' {
             "Vaults": [
                 {
                     "Key": "symmetrickey",
-                    "IsSymmetricKey": true,
                     "KeyDecryptionKey": "deadbee",
                     "Secrets": {
                         "five": "six",
@@ -401,7 +392,6 @@ Describe 'Import-Configuration.when Environments and Vaults are single objects' 
         "InheritsFrom": "Default",
         "Vaults": {
             "Key": "symmetrickey",
-            "IsSymmetricKey": true,
             "KeyDecryptionKey": "yolo",
             "Secrets": {
                 "hello": "world"

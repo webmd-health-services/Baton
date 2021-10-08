@@ -45,6 +45,9 @@ function Get-Vault
         [Parameter(Mandatory)]
         [String] $Environment,
 
+        # The key thumbprint of the vault to return.
+        [String] $Key,
+
         # The configuration to use. The default is to use the configuration in the first "config.json" file found,
         # starting in the current directory followed by each of its parent directories. Use `Import-CfgConfiguration`
         # to import configurations.
@@ -71,7 +74,16 @@ function Get-Vault
             }
         }
 
-        $Configuration | Get-Environment -Name $Environment | Select-Object -ExpandProperty 'Vaults'
+        $Configuration |
+            Get-Environment -Name $Environment -All |
+            Select-Object -ExpandProperty 'Vaults' |
+            Where-Object {
+                if( $Key )
+                {
+                    return $_.Key -eq $Key
+                }
+                return $true
+            }
     }
 
     end

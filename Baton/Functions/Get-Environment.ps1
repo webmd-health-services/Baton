@@ -53,7 +53,7 @@ function Get-Environment
     #>
     [CmdletBinding()]
     param(
-        # The name of the environment to get. The environment's parent environments are returned, too.
+        # The name of the environment to get.
         [Parameter(Mandatory)]
         [String] $Name,
 
@@ -61,7 +61,10 @@ function Get-Environment
         # starting in the current directory followed by each of its parent directories. Use `Import-CfgConfiguration`
         # to import configurations.
         [Parameter(ValueFromPipeline)]
-        [Object] $Configuration
+        [Object] $Configuration,
+
+        # Return the requested environment and all its parent environments.
+        [switch] $All
     )
 
     process
@@ -78,7 +81,6 @@ function Get-Environment
             }
         }
 
-        $configRelPath = $Configuration.Path | Resolve-Path -Relative
         $envs = $Configuration.Environments
         $envName = $Name
         $childEnvName = ''
@@ -87,9 +89,8 @@ function Get-Environment
         {
             if( $envName -in $inheritanceChain )
             {
-                $msg = "$($configRelPath): Circular environment inheritance detected: $($inheritanceChain -join ' -> ') -> " +
-                    "$($envName)."
-                Write-Error -Message $msg -ErrorAction $ErrorActionPreference
+                $msg = "Circular environment inheritance detected: $($inheritanceChain -join ' -> ') -> $($envName)."
+                Write-Error -Message $msg -Configuration $Configuration
                 break
             }
 
@@ -101,11 +102,18 @@ function Get-Environment
                 {
                     $inheritsMsg = ", inherited by environment ""$($childEnvName)"","
                 }
-                $msg = "$($configRelPath): Environment ""$($envName)""$($inheritsMsg) does not exist."
-                Write-Error -Message $msg -ErrorAction $ErrorActionPreference
+                $msg = "Environment ""$($envName)""$($inheritsMsg) does not exist."
+                Write-Error -Message $msg -Configuration $Configuration
                 return
             }
+
             $env | Write-Output
+
+            if( -not $All )
+            {
+                return
+            }
+
             [void]$inheritanceChain.Add($envName)
             $childEnvName = $envName
             $envName = $env.InheritsFrom

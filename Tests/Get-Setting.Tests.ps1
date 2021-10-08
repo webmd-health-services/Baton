@@ -90,7 +90,7 @@ function WhenGetting
     $forceParam = @{}
     if( $FromAllEnvironments )
     {
-        $forceParam['Force'] = $true
+        $forceParam['All'] = $true
     }
 
     $script:result =
@@ -207,7 +207,7 @@ Describe 'Get-Setting.when not passing the configuration to search' {
     }
 }
 
-Describe 'Get-Setting.when forcing return of all values' {
+Describe 'Get-Setting.when getting values in all parent environments' {
     It 'should return values from all environments' {
         Init
         GivenConfig @'

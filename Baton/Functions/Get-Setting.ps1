@@ -55,7 +55,7 @@ function Get-Setting
     `Environment` parameter. If that environment doesn't have the setting, `Get-CfgSetting` looks in the environment's
     parent environment. (An environment sets its `InheritsFrom` property to the name of its parent environment.)
 
-    If you want to return all the values in the initial environment *and* all its parent environments, use the `-Force`
+    If you want to return all the values in the initial environment *and* all its parent environments, use the `-All`
     switch. By default, `Get-CfgSetting` stops searching when it finds and returns a value.
 
     To get a setting from a custom configuration file, use the `Import-CfgConfiguration` function to import
@@ -75,9 +75,9 @@ function Get-Setting
     "Verification" environment or one of its parent environments.
     
     .EXAMPLE
-    Get-CfgSetting-Name 'ForcedExample' -Environment 'Verification' -Force
+    Get-CfgSetting-Name 'AllExample' -Environment 'Verification' -All
 
-    Demonstrates how to use the `-Force` switch to get a setting value from an environment *and* all its parent
+    Demonstrates how to use the `-All` switch to get a setting value from an environment *and* all its parent
     environments, if any. (The defalt is to only return the first value from an environment and each of its parents.)
     If an environment doesn't have a value, nothing is returned for that environment.
     #>
@@ -98,9 +98,9 @@ function Get-Setting
         [Object] $Configuration,
 
         # By default, `Get-CfgSetting` returns just the *first* setting value found in the environment or that
-        # environment's parent environments. Use the `-Force` switch to return *all* setting values in the environment
+        # environment's parent environments. Use the `-All` switch to return *all* setting values in the environment
         # and its parent environments.
-        [switch] $Force
+        [switch] $All
     )
 
     begin
@@ -111,7 +111,7 @@ function Get-Setting
         Write-Debug "[$($MyInvocation.MyCommand.Name)]"
 
         $selectParams = @{ 'First' = 1 }
-        if( $Force )
+        if( $All )
         {
             $selectParams.Clear()
         }
@@ -128,11 +128,10 @@ function Get-Setting
             }
         }
 
-        Write-Debug "  $($Configuration.Path | Resolve-Path -Relative)"
         $foundSetting = $false
         $parentEnvs = [Collections.ArrayList]::New()
         $Configuration |
-            Get-Environment -Name $Environment |
+            Get-Environment -Name $Environment -All |
             ForEach-Object { [void]$parentEnvs.Add($_.Name) ; $_ | Write-Output } |
             Where-Object {
                 $envHasSetting = $_.Settings.ContainsKey($Name)
@@ -159,9 +158,8 @@ function Get-Setting
                 #              or any of its parent environments: 2 -> 3
                 $parentMsg = " or any of its parent environments: $($parentNames -join ' -> ')"
             }
-            $msg = "$($Configuration.Path | Resolve-Path -Relative): Setting ""$($Name)"" not found in " +
-                    """$($Environment)"" environment$($parentMsg)."
-            Write-Error -Message $msg -ErrorAction $ErrorActionPreference
+            $msg = "Setting ""$($Name)"" not found in ""$($Environment)"" environment$($parentMsg)."
+            Write-Error -Message $msg -Configuration $Configuration
         }
     }
 

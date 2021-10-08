@@ -89,16 +89,26 @@ function WhenGettingEnv
         [Parameter(Mandatory, Position=0)]
         [String] $Named,
 
-        [switch] $FromDefaultConfigFile
+        [switch] $FromDefaultConfigFile,
+
+        [switch] $All
     )
+
+    $optionalParams = @{}
+    if( $All )
+    {
+        $optionalParams['All'] = $true
+    }
 
     if( $FromDefaultConfigFile )
     {
-        $script:result = Get-CfgEnvironment -Name $Named
+        $script:result = Get-CfgEnvironment -Name $Named @optionalParams
         return
     }
 
-    $script:result = Import-CfgConfiguration -LiteralPath $script:configPath | Get-CfgEnvironment -Name $Named
+
+    $script:result =
+        Import-CfgConfiguration -LiteralPath $script:configPath | Get-CfgEnvironment -Name $Named @optionalParams
 }
 
 Describe 'Get-Environment.when environment does not exist' {
@@ -132,7 +142,7 @@ Describe 'Get-Environment.when environment exists' {
 }
 
 Describe 'Get-Environment.when environment inherits from another environment' {
-    It 'should return the item' {
+    It 'should return just the environment' {
         Init
         GivenConfig @'
 { 
@@ -153,11 +163,55 @@ Describe 'Get-Environment.when environment inherits from another environment' {
 '@
         WhenGettingEnv 'Verification'
         ThenNoError
+        ThenEnvReturned 'Verification'
+    }
+}
+Describe 'Get-Environment.when environment inherits from another environment and getting all environments' {
+    It 'should return the environment all its parent environments' {
+        Init
+        GivenConfig @'
+{ 
+    "Environments": [
+        {
+            "Name": "YAE"
+        },
+        {
+            "Name": "Verification",
+            "InheritsFrom": "SomeOtherEnv"
+        },
+        {
+            "Name": "SomeOtherEnv",
+            "InheritsFrom": "YAE"
+        }
+    ]
+}
+'@
+        WhenGettingEnv 'Verification' -All
+        ThenNoError
         ThenEnvReturned 'Verification', 'SomeOtherEnv', 'YAE'
     }
 }
 
 Describe 'Get-Environment.when parent environment does not exist' {
+    It 'should return just the environment' {
+        Init
+        GivenConfig @'
+{ 
+    "Environments": [
+        {
+            "Name": "Verification",
+            "InheritsFrom": "DoesNotExist"
+        }
+    ]
+}
+'@
+        WhenGettingEnv 'Verification'
+        ThenNoError
+        ThenEnvReturned 'Verification'
+    }
+}
+
+Describe 'Get-Environment.when parent environment does not exist and getting all environments' {
     It 'should fail and return child environments' {
         Init
         GivenConfig @'
@@ -174,14 +228,14 @@ Describe 'Get-Environment.when parent environment does not exist' {
     ]
 }
 '@
-        WhenGettingEnv 'Verification' -ErrorAction SilentlyContinue
+        WhenGettingEnv 'Verification' -All -ErrorAction SilentlyContinue
         ThenFailed
         ThenEnvReturned 'Verification', 'SomeOtherEnv'
         ThenError '"YAE", inherited by environment "SomeOtherEnv", does not exist'
     }
 }
 
-Describe 'Get-Environment.when environment inheritance is circular' {
+Describe 'Get-Environment.when environment inheritance is circular and getting all environments' {
     It 'should fail and return child environments' {
         Init
         GivenConfig @'
@@ -202,7 +256,7 @@ Describe 'Get-Environment.when environment inheritance is circular' {
     ]
 }
 '@
-        WhenGettingEnv 'Verification' -ErrorAction SilentlyContinue
+        WhenGettingEnv 'Verification' -All -ErrorAction SilentlyContinue
         ThenFailed
         ThenEnvReturned 'Verification', 'SomeOtherEnv', 'YAE'
         ThenError ([regex]::Escape('Verification -> SomeOtherEnv -> YAE -> Verification'))

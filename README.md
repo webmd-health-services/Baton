@@ -1,6 +1,8 @@
 # Overview
 
-The "Baton" module...
+The "Baton" module helps separate configuration from code. Use Baton when code needs to do different things in
+different environments. Put those differences in a baton.json file and use Get-CfgSetting to get a setting for an
+environment.
 
 # System Requirements
 

@@ -46,14 +46,14 @@ function ThenReturnedVault
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [String[]] $WithKeyThumbprint
+        [String[]] $WithKey
     )
 
-    $script:result | Should -HaveCount $WithKeyThumbprint.Count
+    $script:result | Should -HaveCount $WithKey.Count
     [Object[]]$results = $script:result
     for( $idx = 0; $idx -lt $results.Count; ++$idx )
     {
-        $results[$idx].KeyThumbprint | Should -Be $WithKeyThumbprint[$idx]
+        $results[$idx].Key | Should -Be $WithKey[$idx]
     }
 }
 
@@ -61,7 +61,11 @@ function WhenGetting
 {
     [CmdletBinding()]
     param(
-        [switch] $FromDefaultConfigFile
+        [switch] $FromDefaultConfigFile,
+
+        [String] $ForAsymmetricKey,
+
+        [String] $FromEnvironment = 'Verification'
     )
 
     if( $FromDefaultConfigFile )
@@ -76,7 +80,15 @@ function WhenGetting
         return
     }
 
-    $script:result = Import-CfgConfiguration -LiteralPath $script:configPath | Get-CfgVault -Environment 'Verification'
+    $optionalParams = @{}
+    if( $ForAsymmetricKey )
+    {
+        $optionalParams['Key'] = $ForAsymmetricKey
+    }
+
+    $script:result =
+        Import-CfgConfiguration -LiteralPath $script:configPath|
+        Get-CfgVault -Environment $FromEnvironment @optionalParams 
 }
 
 Describe 'Get-Vault.when there are no vaults' {
@@ -129,7 +141,7 @@ Describe 'Get-Vault.when first environment has only vault' {
             "InheritsFrom": "P",
             "Vaults": [
                 {
-                    "KeyThumbprint": "Verification"
+                    "Key": "Verification"
                 }
             ] 
         },
@@ -171,7 +183,7 @@ Describe 'Get-Vault.when last environment has only vault' {
             "Name": "PP",
             "Vaults": [
                 {
-                    "KeyThumbprint": "PP"
+                    "Key": "PP"
                 }
            ]
         }
@@ -195,7 +207,7 @@ Describe 'Get-Vault.when all environments have vaults' {
             "InheritsFrom": "P",
             "Vaults": [
                 {
-                    "KeyThumbprint": "Verification"
+                    "Key": "Verification"
                 }
            ]
         },
@@ -204,7 +216,7 @@ Describe 'Get-Vault.when all environments have vaults' {
             "InheritsFrom": "PP",
             "Vaults": [
                 {
-                    "KeyThumbprint": "P"
+                    "Key": "P"
                 }
            ]
         },
@@ -212,7 +224,7 @@ Describe 'Get-Vault.when all environments have vaults' {
             "Name": "PP",
             "Vaults": [
                 {
-                    "KeyThumbprint": "PP"
+                    "Key": "PP"
                 }
            ]
         }
@@ -236,10 +248,10 @@ Describe 'Get-Vault.when there are multiple number of vaults in each environment
             "InheritsFrom": "P",
             "Vaults": [
                 {
-                    "KeyThumbprint": "Verification1"
+                    "Key": "Verification1"
                 },
                 {
-                    "KeyThumbprint": "Verification2"
+                    "Key": "Verification2"
                 }
            ]
         },
@@ -252,7 +264,7 @@ Describe 'Get-Vault.when there are multiple number of vaults in each environment
             "Name": "PP",
             "Vaults": [
                 {
-                    "KeyThumbprint": "PP"
+                    "Key": "PP"
                 }
            ]
         }
@@ -275,10 +287,10 @@ Describe 'Get-Vault.when getting vaults from default config' {
             "Name": "Verification",
             "Vaults": [
                 {
-                    "KeyThumbprint": "Verification1"
+                    "Key": "Verification1"
                 },
                 {
-                    "KeyThumbprint": "Verification2"
+                    "Key": "Verification2"
                 }
            ]
         }
@@ -288,5 +300,35 @@ Describe 'Get-Vault.when getting vaults from default config' {
         WhenGetting -FromDefaultConfigFile
         ThenNoError
         ThenReturnedVault "Verification1", "Verification2"
+    }
+}
+
+Describe 'Get-Vault.when getting vault with specific key thumbprint' {
+    It 'should return that vault' {
+        Init
+        GivenConfig @'
+{
+    "Environments": [
+        {
+            "Name": "E1",
+            "InheritsFrom": "E2",
+            "Vaults": [
+                { "Key": "V1" },
+                { "Key": "V2" }
+            ]
+        },
+        {
+            "Name": "E2",
+            "Vaults": [
+                { "Key": "V1" },
+                { "Key": "V2" }
+            ]
+        }
+    ]
+}
+'@
+        WhenGetting -ForAsymmetricKey 'V1' -FromEnvironment 'E1'
+        ThenNoError
+        ThenReturnedVault 'V1', 'V1'
     }
 }

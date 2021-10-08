@@ -104,30 +104,6 @@ function Import-Configuration
         Set-StrictMode -Version 'Latest'
         Use-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
 
-        $emptyObject = [pscustomobject]@{}
-        $emptyArray = @()
-
-        function ConvertTo-Hashtable
-        {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory, ValueFromPipeline)]
-                [Object] $InputObject
-            )
-
-            process
-            {
-                $ht = @{}
-                $propertyNames =
-                    $InputObject | Get-Member -MemberType 'NoteProperty' | Select-Object -ExpandProperty 'Name'
-                foreach( $propertyName in $propertyNames )
-                {
-                    $ht[$propertyName] = $InputObject.$propertyName
-                }
-                return $ht
-            }
-        }
-
         Write-Debug "[$($MyInvocation.MyCommand.Name)]"
     }
 
@@ -172,10 +148,10 @@ function Import-Configuration
 
         Write-Debug "  $($displayPath)"
 
-        $config = $null
+        $jsonConfig = $null
         try
         {
-            $config = Get-Content -LiteralPath $LiteralPath | ConvertFrom-Json
+            $jsonConfig = Get-Content -LiteralPath $LiteralPath | ConvertFrom-Json
         }
         catch
         {
@@ -184,37 +160,32 @@ function Import-Configuration
             return
         }
 
-        if( -not $config )
+        if( -not $jsonConfig )
         {
-            $config = [pscustomobject]::New()
+            $jsonConfig = [pscustomobject]::New()
         }
-        elseif( $config -isnot ('{}' | ConvertFrom-Json).GetType() )
+        elseif( $jsonConfig -isnot ('{}' | ConvertFrom-Json).GetType() )
         {
             $msg = "$($displayPath): contains invalid JSON. Expected to get an object after parsing, but instead " +
-                "got [$($config.GetType().FullName)]. Please update this file so that when parsed, returns a " +
+                "got [$($jsonConfig.GetType().FullName)]. Please update this file so that when parsed, returns a " +
                 'single JSON object (i.e. `{` and `}` should be the first and last characters in the file).'
             Write-Error -Message $msg -ErrorAction $ErrorActionPreference
             return
         }
 
-        # Make sure the config has required properties. Can't do this in a single pipeline because if there's an error,
-        # Add-Member doesn't return anything.
-        $config |
-            Add-Member -Name 'Environments' -MemberType NoteProperty -Value $emptyArray.Clone() -ErrorAction Ignore
-        $config | Add-Member -Name 'Path' -MemberType NoteProperty -Value $LiteralPath -Force
-
-        # Make sure environments is *always* an array.
-        if( $config.Environments -is [pscustomobject] )
-        {
-            $config.Environments = @( $config.Environments )
-        }
-
+        $batonConfig = New-ConfigurationObject -Path $LiteralPath
+        
         $envIdx = 0
-        foreach( $env in $config.Environments )
+
+        $jsonEnvs = 
+            $jsonConfig |
+            Select-Object -ExpandProperty 'Environments' -ErrorAction Ignore |
+            Select-Object -Property 'Name', 'InheritsFrom', 'Settings', 'Vaults'
+        foreach( $jsonEnv in $jsonEnvs )
         {
             $envIdx += 1
 
-            if( -not ($env | Get-Member -Name 'Name') )
+            if( -not $jsonEnv.Name )
             {
                 $msg = "$($displayPath): Environment $($envIdx) doesn't have a ""Name"" property. Each " +
                     'environment *must* have a name.'
@@ -222,20 +193,22 @@ function Import-Configuration
                 return
             }
 
-            # Make sure each environment has all required settings.
-            $env | Add-Member -Name 'Settings' -MemberType NoteProperty -Value $emptyObject -ErrorAction Ignore
-            $env | Add-Member -Name 'Vaults' -MemberType NoteProperty -Value $emptyArray.Clone() -ErrorAction Ignore
-            $env | Add-Member -Name 'InheritsFrom' -MemberType NoteProperty -Value '' -ErrorAction Ignore
-
-            $env.Settings = $env.Settings | ConvertTo-Hashtable
+            $batonEnv = New-EnvironmentObject -Name $jsonEnv.Name `
+                                        -InheritsFrom $jsonEnv.InheritsFrom `
+                                        -Settings $jsonEnv.Settings
+            [void]$batonConfig.Environments.Add( $batonEnv )
 
             $vaultIdx = 0
-            foreach( $vault in $env.Vaults )
+            $jsonVaults =
+                $jsonEnv |
+                Select-Object -ExpandProperty 'Vaults' -ErrorAction Ignore |
+                Select-Object -Property 'Key', 'KeyDecryptionKey', 'Secrets'
+            foreach( $jsonVault in $jsonVaults )
             {
                 $vaultIdx += 1
-                if( -not ($vault | Get-Member -Name 'Key') )
+                if( -not $jsonVault.Key )
                 {
-                    $msg = "$($displayPath): Environment $($env.Name): Vault $($vaultIdx) doesn't have a " +
+                    $msg = "$($displayPath): Environment $($jsonEnv.Name): Vault $($vaultIdx) doesn't have a " +
                            '"Key" property. Each vault must have a "Key" property. For asymmetric keys (i.e. public ' +
                            'key cryptography), "Key" should be the thumbprint of the certificate to use. The ' +
                            'certificate must be in the "My"/"Personal" certificate store. For symmetric keys, "Key" ' +
@@ -245,15 +218,15 @@ function Import-Configuration
                     Write-Error -Message $msg -ErrorAction $ErrorActionPreference
                     return
                 }
-                $vault | Add-Member -Name 'IsSymmetricKey' -MemberType 'NoteProperty' -Value $false -ErrorAction Ignore
-                $vault | Add-Member -Name 'KeyDecryptionKey' -MemberType 'NoteProperty' -Value '' -ErrorAction Ignore
-                $vault | Add-Member -Name 'Secrets' -MemberType NoteProperty -Value $emptyObject -ErrorAction Ignore
 
-                $vault.Secrets = $vault.Secrets | ConvertTo-Hashtable
+                $batonVault = New-VaultObject -Key $jsonVault.Key `
+                                        -KeyDecryptionKey $jsonVault.KeyDecryptionKey `
+                                        -Secrets $jsonVault.Secrets
+                [void]$batonEnv.Vaults.Add( $batonVault )
             }
         }
 
-        return $config
+        return $batonConfig
     }
 
     end

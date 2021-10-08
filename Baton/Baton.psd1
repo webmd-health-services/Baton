@@ -80,10 +80,17 @@ environment.
 
     # Functions to export from this module. Only list public function here.
     FunctionsToExport = @(
+        'Add-Environment',
+        'Add-Setting',
+        'Add-Vault',
+        'Add-VaultSecret',
         'Get-Environment',
         'Get-Setting',
         'Get-Vault',
-        'Import-Configuration'
+        'Import-Configuration',
+        'New-ConfigurationObject',
+        'New-EnvironmentObject',
+        'New-VaultObject'
     )
 
     # Cmdlets to export from this module. By default, you get a script module, so there are no cmdlets.
