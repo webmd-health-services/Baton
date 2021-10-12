@@ -84,6 +84,7 @@ environment.
         'Add-Setting',
         'Add-Vault',
         'Add-VaultSecret',
+        'Export-Configuration',
         'Get-Environment',
         'Get-Setting',
         'Get-Vault',

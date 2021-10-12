@@ -33,41 +33,40 @@ function Import-Configuration
     Here's an example:
 
         {
-            "Environments": {
-                [
-                    {
-                        "Name": "Default",
-                        "Settings": {
-                            "SettingOne": "ValueOne"
-                        },
-                        "Vaults": [
-                            {
-                                "KeyThumbprint": "deadbee",
-                                "Secrets": {
-                                    "secretone": "encryptedsecretone"
-                                }
-                            }
-                        ]
-                    },
-
-                    {
-                        "Name": "Dev",
-                        "InheritsFrom": "Default",
-                        "Settings": {
-                            "SettingTwo": "ValueTwo"
-                        },
-                        "Vaults": [
-                            {
-                                "KeyThumbprint": "deadbee",
-                                "Key": "My super secret symmetric key encrypted with the certificates whose thumbprint is KeyThumbprint.",
-                                "Secrets": {
-                                    "secrettwo": "encryptedsecrettwo"
-                                }
-                            }
-                        ]
+          "Environments": {
+            [
+              {
+                "Name": "Default",
+                "Settings": {
+                  "SettingOne": "ValueOne"
+                },
+                "Vaults": [
+                  {
+                    "Key": "deadbee",
+                    "Secrets": {
+                      "secretone": "encryptedsecretone"
                     }
+                  }
                 ]
-            }
+              },
+              {
+                  "Name": "Dev",
+                  "InheritsFrom": "Default",
+                  "Settings": {
+                    "SettingTwo": "ValueTwo"
+                  },
+                  "Vaults": [
+                    {
+                      "Key": "My super secret symmetric key encrypted with the certificates whose thumbprint is KeyThumbprint.",
+                      "KeyDecryptionKey": "deadbee",
+                      "Secrets": {
+                        "secrettwo": "encryptedsecrettwo"
+                      }
+                    }
+                  ]
+              }
+            ]
+          }
         }
 
 

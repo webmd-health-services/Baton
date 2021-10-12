@@ -55,16 +55,11 @@ function Get-Vault
         [Object] $Configuration
     )
 
-    begin
+    process
     {
         Set-StrictMode -Version 'Latest'
         Use-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
 
-        Write-Debug "[$($MyInvocation.MyCommand.Name)]"
-    }
-
-    process
-    {
         if( -not $Configuration )
         {
             $Configuration = Import-Configuration
@@ -84,10 +79,5 @@ function Get-Vault
                 }
                 return $true
             }
-    }
-
-    end
-    {
-        Write-Debug "[$($MyInvocation.MyCommand.Name)]"
     }
 }

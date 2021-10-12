@@ -59,7 +59,7 @@ function Add-Vault
             return
         }
 
-        $env = $Configuration | Get-Environment -Name $Environment -ErrorAction Ignore
+        $env = $Configuration | Get-Environment -Name $Environment -ErrorAction Ignore | Select-Object -First 1
         if( -not $env )
         {
             $env = $Configuration | Add-Environment -Name $Environment -PassThru | Get-Environment -Name $Environment
