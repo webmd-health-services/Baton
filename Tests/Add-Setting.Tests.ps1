@@ -61,20 +61,6 @@ function ThenEnv
     $script:config | Get-CfgEnvironment -Name $Named | Should -Not -BeNullOrEmpty
 }
 
-function ThenFailed
-{
-    [CmdletBinding()]
-    param(
-        [String] $WithErrorMatching
-    )
-
-    $Global:Error | Should -Not -BeNullOrEmpty
-    if( $WithErrorMatching )
-    {
-        $Global:Error | Should -Match $WithErrorMatching
-    }
-}
-
 function ThenNoError
 {
     $Global:Error | Should -BeNullOrEmpty

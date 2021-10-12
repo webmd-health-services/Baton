@@ -45,17 +45,6 @@ function Init
     $script:mockFs = @{}
 }
 
-function ThenFailed
-{
-    [CmdletBinding()]
-    param(
-        [String] $WithErrorMatching
-    )
-
-    $Global:Error | Should -Not -BeNullOrEmpty
-    $Global:Error | Should -Match $WithErrorMatching
-}
-
 function ThenFoundFile
 {
     [CmdletBinding()]

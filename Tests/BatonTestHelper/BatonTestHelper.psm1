@@ -52,3 +52,14 @@ function ShouldBeOfBatonType {
         $InputObject.pstypenames[0] | Should -Be "Baton.$($Named)"
     }
 }
+
+function ThenFailed
+{
+    [CmdletBinding()]
+    param(
+        [String] $WithErrorMatching
+    )
+
+    $Global:Error | Should -Not -BeNullOrEmpty
+    $Global:Error | Should -Match $WithErrorMatching
+}

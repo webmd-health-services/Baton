@@ -30,17 +30,6 @@ function Init
     New-Item -Path $testDir -ItemType 'Directory'
 }
 
-function ThenFailed
-{
-    [CmdletBinding()]
-    param(
-        [String] $WithErrorMatching
-    )
-
-    $Global:Error | Should -Not -BeNullOrEmpty
-    $Global:Error | Should -Match $WithErrorMatching
-}
-
 function ThenEnvReturned
 {
     [CmdletBinding()]

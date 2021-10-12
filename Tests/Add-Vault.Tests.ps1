@@ -52,19 +52,6 @@ function ThenAddedVault
     $vault.Key | Should -Be $ForKey
 }
 
-function ThenFailed {
-    [CmdletBinding()]
-    param (
-        [String] $WithErrorMatching
-    )
-    
-    $Global:Error | Should -Not -BeNullOrEmpty
-    if( $WithErrorMatching )
-    {
-        $Global:Error | Should -Match $WithErrorMatching
-    }
-}
-
 function ThenNotAddedVault {
     [CmdletBinding()]
     param (

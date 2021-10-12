@@ -46,19 +46,6 @@ function ThenAddedEnv
     $env.Name | Should -Be $Named
 }
 
-function ThenFailed {
-    [CmdletBinding()]
-    param (
-        [String] $WithErrorMatching
-    )
-    
-    $Global:Error | Should -Not -BeNullOrEmpty
-    if( $WithErrorMatching )
-    {
-        $Global:Error | Should -Match $WithErrorMatching
-    }
-}
-
 function ThenNotAddedEnv {
     [CmdletBinding()]
     param (

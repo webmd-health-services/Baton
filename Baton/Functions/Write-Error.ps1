@@ -17,7 +17,7 @@ function Write-Error
         $sourcePrefix = $Configuration.Path | Resolve-Path -Relative -ErrorAction Ignore
         if( $sourcePrefix )
         {
-            $Message = "$($sourcePrefix)$($Message)"
+            $Message = "$($sourcePrefix): $($Message)"
         }
     }
 

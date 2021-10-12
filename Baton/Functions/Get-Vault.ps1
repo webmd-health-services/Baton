@@ -48,6 +48,9 @@ function Get-Vault
         # The key thumbprint of the vault to return.
         [String] $Key,
 
+        # Return vaults that contain a specific secret.
+        [String] $SecretName,
+
         # The configuration to use. The default is to use the configuration in the first "config.json" file found,
         # starting in the current directory followed by each of its parent directories. Use `Import-CfgConfiguration`
         # to import configurations.
@@ -69,6 +72,7 @@ function Get-Vault
             }
         }
 
+        $vaults = $null
         $Configuration |
             Get-Environment -Name $Environment -All |
             Select-Object -ExpandProperty 'Vaults' |
@@ -78,6 +82,24 @@ function Get-Vault
                     return $_.Key -eq $Key
                 }
                 return $true
+            } |
+            Where-Object {
+                if( $SecretName )
+                {
+                    return $_.Secrets.ContainsKey($SecretName)
+                }
+                return $true
+            } | Tee-Object -Variable 'vaults'
+
+        if( -not $vaults -and ($Key -or $SecretName) )
+        {
+            $msg = "Vault protected with key ""$($Key)"" does not exist"
+            if( $SecretName )
+            {
+                $msg = "Secret ""$($SecretName)"" does not exist"
             }
+            $msg = "$($msg) in the ""$($Environment)"" environment or any of its parent environments."
+            Write-Error -Message $msg -Configuration $Configuration
+        }
     }
 }

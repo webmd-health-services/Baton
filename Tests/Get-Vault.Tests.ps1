@@ -57,7 +57,7 @@ function ThenReturnedVault
     }
 }
 
-function WhenGetting
+function WhenGettingVault
 {
     [CmdletBinding()]
     param(
@@ -65,7 +65,9 @@ function WhenGetting
 
         [String] $ForAsymmetricKey,
 
-        [String] $FromEnvironment = 'Verification'
+        [String] $FromEnvironment = 'Verification',
+
+        [String] $ContainsSecret
     )
 
     if( $FromDefaultConfigFile )
@@ -86,6 +88,11 @@ function WhenGetting
         $optionalParams['Key'] = $ForAsymmetricKey
     }
 
+    if( $ContainsSecret )
+    {
+        $optionalParams['SecretName'] = $ContainsSecret
+    }
+
     $script:result =
         Import-CfgConfiguration -LiteralPath $script:configPath|
         Get-CfgVault -Environment $FromEnvironment @optionalParams 
@@ -95,7 +102,37 @@ Describe 'Get-Vault.when there are no vaults' {
     It 'should return nothing' {
         Init
         GivenConfig '{ "Environments": [ { "Name": "Verification", "InheritsFrom": "P" }, { "Name": "P" } ] }'
-        WhenGetting
+        WhenGettingVault
+        ThenNothingReturned
+        ThenNoError
+    }
+}
+
+Describe 'Get-Vault.when there are no vaults and searching for a specific vault' {
+    It 'should return nothing' {
+        Init
+        GivenConfig '{ "Environments": [ { "Name": "Verification", "InheritsFrom": "P" }, { "Name": "P" } ] }'
+        WhenGettingVault -ForAsymmetricKey 'donotexist' -ErrorAction SilentlyContinue
+        ThenNothingReturned
+        ThenFailed 'key "donotexist" does not exist'
+    }
+}
+
+Describe 'Get-Vault.when there are no vaults and searching for a specific secret' {
+    It 'should return nothing' {
+        Init
+        GivenConfig '{ "Environments": [ { "Name": "Verification", "InheritsFrom": "P" }, { "Name": "P" } ] }'
+        WhenGettingVault -ContainsSecret 'donotexist' -ErrorAction SilentlyContinue
+        ThenNothingReturned
+        ThenFailed 'Secret "donotexist" does not exist'
+    }
+}
+
+Describe 'Get-Vault.when there are no vaults and searching for a specific secret and ignore errors' {
+    It 'should write no errors' {
+        Init
+        GivenConfig '{ "Environments": [ { "Name": "Verification", "InheritsFrom": "P" }, { "Name": "P" } ] }'
+        WhenGettingVault -ContainsSecret 'donotexist' -ErrorAction Ignore
         ThenNothingReturned
         ThenNoError
     }
@@ -124,7 +161,7 @@ Describe 'Get-Vault.when there are only empty vaults' {
     ]
 }
 '@
-        WhenGetting
+        WhenGettingVault
         ThenNothingReturned
         ThenNoError
     }
@@ -157,7 +194,7 @@ Describe 'Get-Vault.when first environment has only vault' {
     ]
 }
 '@
-        WhenGetting
+        WhenGettingVault
         ThenNoError
         ThenReturnedVault "Verification"
     }
@@ -190,7 +227,7 @@ Describe 'Get-Vault.when last environment has only vault' {
     ]
 }
 '@
-        WhenGetting
+        WhenGettingVault
         ThenNoError
         ThenReturnedVault "PP"
     }
@@ -231,7 +268,7 @@ Describe 'Get-Vault.when all environments have vaults' {
     ]
 }
 '@
-        WhenGetting
+        WhenGettingVault
         ThenNoError
         ThenReturnedVault "Verification", "P", "PP"
     }
@@ -271,7 +308,7 @@ Describe 'Get-Vault.when there are multiple number of vaults in each environment
     ]
 }
 '@
-        WhenGetting
+        WhenGettingVault
         ThenNoError
         ThenReturnedVault "Verification1", "Verification2", "PP"
     }
@@ -297,7 +334,7 @@ Describe 'Get-Vault.when getting vaults from default config' {
     ]
 }
 '@
-        WhenGetting -FromDefaultConfigFile
+        WhenGettingVault -FromDefaultConfigFile
         ThenNoError
         ThenReturnedVault "Verification1", "Verification2"
     }
@@ -327,8 +364,72 @@ Describe 'Get-Vault.when getting vault with specific key thumbprint' {
     ]
 }
 '@
-        WhenGetting -ForAsymmetricKey 'V1' -FromEnvironment 'E1'
+        WhenGettingVault -ForAsymmetricKey 'V1' -FromEnvironment 'E1'
         ThenNoError
         ThenReturnedVault 'V1', 'V1'
+    }
+}
+
+Describe 'Get-Vault.when looking for vaults with a specific secret' {
+    It 'should return only vaults with that secret' {
+        Init
+        Init
+        GivenConfig @'
+{
+    "Environments": [
+        {
+            "Name": "E1",
+            "InheritsFrom": "E2",
+            "Vaults": [
+                {
+                    "Key": "Verification1",
+                    "Secrets": {
+                        "specific": "value1",
+                        "another": "value2"
+                    }
+                },
+                {
+                    "Key": "Verification2",
+                    "Secrets": {
+                        "specific": "value3",
+                        "another": "value4"
+                    }
+                }
+           ]
+        },
+        {
+            "Name": "E2",
+            "InheritsFrom": "E3",
+            "Vaults": [
+                {
+                    "Key": "Verification3",
+                    "Secrets": {
+                        "specific": "value5"
+                    }
+                }
+            ]
+        },
+        {
+            "Name": "E3",
+            "Vaults": [
+                {
+                    "Key": "Verification4",
+                    "Secrets": {
+                        "specific": "value6"
+                    }
+                },
+                {
+                    "Key": "Verificaiton5",
+                    "Secrets": {
+                        "another": "value7"
+                    }
+                }
+            ]
+        }
+    ]
+}
+'@
+        WhenGettingVault -ContainsSecret 'specific' -FromEnvironment 'E1'
+        ThenReturnedVault 'Verification1', 'Verification2', 'Verification3', 'Verification4'
     }
 }

@@ -82,20 +82,6 @@ function ThenSecret
         Should -Be $HasValue
 }
 
-function ThenFailed {
-    [CmdletBinding()]
-    param (
-        [String] $WithErrorMatching
-    )
-    
-    $Global:Error | Should -Not -BeNullOrEmpty
-    if( $WithErrorMatching )
-    {
-        $Global:Error | Should -Match $WithErrorMatching
-    }
-}
-
-
 function WhenAddingSecret
 {
     [CmdletBinding()]
