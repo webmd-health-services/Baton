@@ -42,7 +42,8 @@ function Protect-Secret
     #>
     [CmdletBinding()]
     param(
-        # The path to the public key to use to encrypt a secret. Can be a file system path or a certificate provider path (e.g. `cert:`).
+        # The path to the public key to use to encrypt a secret. Can be a file system path or, on Windows, a certificate
+        # provider path (e.g. `cert:`).
         [Parameter(Mandatory)]
         [Object] $Key,
 
@@ -52,8 +53,11 @@ function Protect-Secret
     Set-StrictMode -Version 'Latest'
     Use-CallerPreference -Cmdlet $PSCmdlet -SessionState $ExecutionContext.SessionState
 
+    $key = Resolve-Key -Key $Key 
+
     if( $PSCmdlet.ParameterSetName -like 'ByThumbprint*' )
     {
+        $certificate = Get-CCertificate -StoreLocation CurrentUser -StoreName My -Thumbprint $
         $PublicKeyPath = 'cert:\CurrentUser\My\{0}' -f $Thumbprint
         if( -not (Test-Path -Path $PublicKeyPath -PathType Leaf) )
         {

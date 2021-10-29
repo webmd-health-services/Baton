@@ -19,6 +19,16 @@ Build:
     DeleteSourceFiles: true
     TextSeparator: "$(NewLine)$(NewLine)"
 
+- GetPowerShellModule:
+    Name: Carbon.Cryptography
+    Version: 2.*
+    Path: Baton\Modules
+
+- GetPowerShellModule:
+    Name: Carbon.Core
+    Version: 1.*
+    Path: PSModules
+
 - CopyFile:
     IfExists: env:WHS_CI
     Path:

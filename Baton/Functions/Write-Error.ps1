@@ -1,6 +1,14 @@
 
 function Write-Error
 {
+    <#
+    .SYNOPSIS
+    ***INTERNAL***. Do not use.
+    .DESCRIPTION
+    ***INTERNAL***. Do not use.
+    .EXAMPLE
+    ***INTERNAL***. Do not use.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]

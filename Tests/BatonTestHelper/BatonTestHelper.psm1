@@ -57,9 +57,20 @@ function ThenFailed
 {
     [CmdletBinding()]
     param(
-        [String] $WithErrorMatching
+        [String] $WithErrorMatching,
+
+        [int] $AtIndex = 0
     )
 
     $Global:Error | Should -Not -BeNullOrEmpty
-    $Global:Error | Should -Match $WithErrorMatching
+
+    if( $WithErrorMatching )
+    {
+        $Global:Error | Select-Object -Index $AtIndex | Should -Match $WithErrorMatching
+    }
+}
+
+function ThenNoError
+{
+    $Global:Error | Should -BeNullOrEmpty
 }

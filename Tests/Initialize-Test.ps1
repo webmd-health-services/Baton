@@ -26,11 +26,16 @@ $originalWhatIfPref = $Global:WhatIfPreference
 $Global:VerbosePreference = $VerbosePreference = 'SilentlyContinue'
 $Global:WhatIfPreference = $WhatIfPreference = $false
 
+Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules\Carbon.Core' -Resolve) `
+              -Function ('Test-COperatingSystem') `
+              -Prefix 'T'
+
 try
 {
     $modules = [ordered]@{
         'Baton' = '..\Baton';
         'BatonTestHelper' = 'BatonTestHelper';
+        'Carbon.Cryptography' = '..\Baton\Modules\Carbon.Cryptography';
     }
     foreach( $moduleName in $modules.Keys )
     {
@@ -48,8 +53,13 @@ try
             Remove-Module -Name $moduleName -Force
         }
 
+        $optionalParams = @{}
+        if( $modulePath -match '(\\|/)Baton(\\|/)Modules(\\|/)' )
+        {
+            $optionalParams['Prefix'] = 'T'
+        }
         Write-Verbose -Message ('Importing module "{0}" from "{1}".' -f $moduleName,$modulePath)
-        Import-Module -Name $modulePath
+        Import-Module -Name $modulePath @optionalParams
     }
 }
 finally
